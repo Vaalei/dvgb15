@@ -27,18 +27,23 @@ void readDistanceValue(){
 }
 
 void updateRobotState() {
+  Serial.println("Line Sensor Value: " + String(robotState.line));
   switch(robotState.line){
-    case 0:   // inga dvs båda på linjen
-
+    case ONLINE:   // inga dvs båda på linjen
+    zRobotSetMotorSpeed(1, -speed);
+    zRobotSetMotorSpeed(2, speed);
       break;
-    case 1:   // 1 höger sensor, höger utanför linjen
-
+    case RIGHT:   // 1 höger sensor, höger utanför linjen
+    zRobotSetMotorSpeed(1, -speed);
+    zRobotSetMotorSpeed(2, 0);
       break;
-    case 2:   // 2 vänster sensor, vänster utanför linjen
-
+    case LEFT:   // 2 vänster sensor, vänster utanför linjen
+    zRobotSetMotorSpeed(1, 0);
+    zRobotSetMotorSpeed(2, speed);
       break;
-    case 3:   // 3 båda sensorerna, båda utanför?? 
-
+    case OFFLINE:   // 3 båda sensorerna, båda utanför?? 
+    zRobotSetMotorSpeed(1, 0);
+    zRobotSetMotorSpeed(2, 0);
       break;
   }
 }
@@ -46,15 +51,16 @@ void updateRobotState() {
 void setup() {
   zInitialize();  
   Serial.begin(9600);
-  zScheduleTask(readLineValue, 50, 10);
-  zScheduleTask(readDistanceValue, 100, 10);
-  zScheduleTask(updateRobotState, 50, 10);
+  zScheduleTask(readLineValue, 2, 10);
+  zScheduleTask(readDistanceValue, 10, 10);
+  zScheduleTask(updateRobotState, 2, 10);
+  zStart();
   // put your setup code here, to run once:
 
 }
 
 void loop() {
-
+/*
   unsigned long currentMillis = millis();
   
   if (currentMillis - previousMillis >= interval) {
@@ -65,7 +71,7 @@ void loop() {
     Serial.println(zRobotGetLineSensor());
 
   }
-
+*/
   // 1 höger sensor
   // 2 vänster sensor
   // 3 båda sensorerna 
