@@ -24,6 +24,10 @@ struct robot {
   long avoid_end_time;
   long offline_time = -1;
   line_value last_turn;
+  line_value prev_line = ONLINE;
+  int left_count = 0;
+  int right_count = 0;
+
 };
 
 robot robotState;
@@ -33,14 +37,36 @@ void motorController(int leftSpeed, int rightSpeed) {
   zRobotSetMotorSpeed(2, rightSpeed);
 }
 
+void checkLapDirection() {
+  if (robotState.line == LEFT && robotState.prev_line != LEFT) {
+    robotState.left_count++;
+    robotState.right_count = 0;
+  } else if (robotState.line == RIGHT && robotState.prev_line != RIGHT) {
+    robotState.right_count++;
+    robotState.left_count = 0;
+  }
+  if (robotState.left_count >= 5) {
+    robotState.dir = CLOCKWISE;
+    robotState.left_count = 0;
+  }
+  if (robotState.right_count >= 5) {
+    robotState.dir = COUNTERCLOCKWISE;
+    robotState.right_count = 0;
+  }
+  robotState.prev_line = robotState.line;
+}
+
 void readLineValue(){
   int lineval = zRobotGetLineSensor();
   robotState.line = static_cast<line_value>(lineval);
+  checkLapDirection(); // new counter 
   if (robotState.mode == AVOID && robotState.line != OFFLINE && (millis() - robotState.avoid_start_time > 1200)) {
     robotState.avoid_end_time = millis(); // Record the time when avoidance ended
     robotState.mode = NORMAL;       // Switch back to NORMAL mode after avoidance and line is detected
   }
 }
+
+
 
 void readDistanceValue(){
   int distance = zRobotGetUltraSensor();
