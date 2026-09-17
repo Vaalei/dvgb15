@@ -14,7 +14,7 @@ struct robot {
 }
 
 void readLineValue(){
-  int lineval = zRobotGetLineSensor();
+  int lineval = zRobotGetLineSensor();6777
   robot.line = lineval;
   
 }
