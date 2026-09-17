@@ -7,7 +7,7 @@ const long turning_speed = 45;
 const long turnup_time = 3000;
 const long slow_time = 0;
 const long max_offline_time = 2000;
-
+const long TURNOUT_TIME = 600; 
 
 enum lap_direction {CLOCKWISE, COUNTERCLOCKWISE};
 enum direction {DLEFT, DRIGHT, DSTRAIGHT};
@@ -25,8 +25,8 @@ struct robot {
   long offline_time = -1;
   line_value last_turn;
   line_value prev_line = ONLINE;
-  int left_count = 0;
-  int right_count = 0;
+  int left_count = 2;
+  int right_count = 2;
 
 };
 
@@ -38,22 +38,16 @@ void motorController(int leftSpeed, int rightSpeed) {
 }
 
 void checkLapDirection() {
-  if (robotState.line == LEFT && robotState.prev_line != LEFT) {
-    robotState.left_count++;
-    robotState.right_count = 0;
-  } else if (robotState.line == RIGHT && robotState.prev_line != RIGHT) {
-    robotState.right_count++;
-    robotState.left_count = 0;
-  }
-  if (robotState.left_count >= 5) {
+
+  if (robotState.left_count > robotState.right_count) {
     robotState.dir = CLOCKWISE;
-    robotState.left_count = 0;
+    zSetOneLed(1, 0, 255, 0); 
+    
   }
-  if (robotState.right_count >= 5) {
+  if (robotState.right_count > robotState.left_count) {
     robotState.dir = COUNTERCLOCKWISE;
-    robotState.right_count = 0;
+    zSetOneLed(1, 0, 0, 255); 
   }
-  robotState.prev_line = robotState.line;
 }
 
 void readLineValue(){
@@ -61,8 +55,8 @@ void readLineValue(){
   robotState.line = static_cast<line_value>(lineval);
   checkLapDirection(); // new counter 
   if (robotState.mode == AVOID && robotState.line != OFFLINE && (millis() - robotState.avoid_start_time > 1200)) {
-    robotState.avoid_end_time = millis(); // Record the time when avoidance ended
-    robotState.mode = NORMAL;       // Switch back to NORMAL mode after avoidance and line is detected
+    robotState.avoid_end_time = millis(); 
+    robotState.mode = NORMAL;       
   }
 }
 
@@ -71,15 +65,15 @@ void readLineValue(){
 void readDistanceValue(){
   int distance = zRobotGetUltraSensor();
   if (robotState.mode == AVOID) {
-    return; // If already in AVOID mode, don't change it based on distance
+    return; 
   }
   robotState.distance = distance;
   if (distance < 25) {
     robotState.mode = AVOID;
-    robotState.avoid_start_time = millis(); // Record the time when avoidance started
+    robotState.avoid_start_time = millis(); 
 
   } else {
-    //robotState.mode = NORMAL;
+    
   }
 }
 
@@ -89,57 +83,65 @@ void updateRobotState() {
   switch (robotState.mode) {
     case NORMAL:
       if (robotState.line != OFFLINE) {
-        robotState.offline_time = -1; // Reset offline time if the robot is back online
+        robotState.offline_time = -1; 
       }
       switch(robotState.line){
-      case ONLINE:   // inga dvs båda på linjen
+      case ONLINE:   
         if (robotState.avoid_end_time != 0 && millis() - robotState.avoid_end_time < turnup_time) {
           if (robotState.dir == CLOCKWISE) {
-            motorController(0, speed); // Turn right in place
+            motorController(0, speed); 
           } else {
-            motorController(speed, 0); // Turn left in place
+            motorController(speed, 0); 
           }
           break;
         }
         if (millis() - robotState.avoid_end_time < turnup_time + slow_time) {
-          motorController(slow_speed, slow_speed); // Move straight slower for a while after avoidance
+          motorController(slow_speed, slow_speed); 
         }
-        motorController(speed, speed); // Move straight
+        motorController(speed, speed); 
         break;
-      case RIGHT:   // 1 höger sensor, höger utanför linjen
+      case RIGHT:   
         motorController(speed, speed*0.5);
-        robotState.last_turn = RIGHT; // Record the last turn direction
+        robotState.last_turn = RIGHT; 
+        if (robotState.left_count > 0) {
+          robotState.right_count++;
+          robotState.left_count--;
+        }
         break;
-      case LEFT:   // 2 vänster sensor, vänster utanför linjen
+      case LEFT:  
         motorController(speed*0.5, speed);
-        robotState.last_turn = LEFT; // Record the last turn direction
+        robotState.last_turn = LEFT; 
+         if (robotState.right_count > 0) {
+          robotState.left_count++;
+          robotState.right_count--;
+        }
         break;
-      case OFFLINE:   // 3 båda sensorerna, båda utanför??
-        robotState.offline_time = millis(); // Record the time when the robot went offline
+      case OFFLINE:   
+        robotState.offline_time = millis(); 
         if (robotState.offline_time != -1 && millis() - robotState.offline_time > max_offline_time) {
-          // If the robot has been offline for too long, stop it
+          
           motorController(0, 0);
         } else {
           if (robotState.last_turn == LEFT) {
-            motorController(0, speed); // Turn left
+            motorController(0, speed); 
           } else if (robotState.last_turn == RIGHT) {
-            motorController(speed, 0); // Turn right
+            motorController(speed, 0); 
           }
         }
         break;
       }
       break;
     case AVOID:
-      // Make robot turn and then go in a cricle around the object
-      if (millis() - robotState.avoid_start_time < 500) {
-        if (robotState.dir == CLOCKWISE) {
-          motorController(-speed, speed); // Turn right in place
+     
+      if (millis() - robotState.avoid_start_time < TURNOUT_TIME) {
+        if (robotState.dir ==  CLOCKWISE) {
+          motorController(-speed, speed); 
         } else {
-          motorController(speed, -speed); // Turn left in place
+          motorController(speed, -speed); 
         }
 
       } else {
-        // After turning, go straight for a while
+       
         if (robotState.dir == CLOCKWISE) {
           motorController(speed, turning_speed);
         } else {
@@ -159,48 +161,13 @@ void setup() {
   zScheduleTask(updateRobotState, 3, 10);
   zStart();
 
-  // put your setup code here, to run once:
+ 
 
 }
 
 void loop() {
-/*
-  unsigned long currentMillis = millis();
 
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis; // Save the last time you printed
-    int distance = zRobotGetUltraSensor();
-    Serial.print(distance);
-    Serial.print(", ");
-    Serial.println(zRobotGetLineSensor());
-
-  }
-*/
-  // 1 höger sensor
-  // 2 vänster sensor
-  // 3 båda sensorerna
-  // ger output om den ser vit eller inte svart
 
 
 }
 
-/*
-  switch(){
-    case 0:   // inga dvs båda på linjen
-      zRobotSetMotorSpeed(1, -speed);
-      zRobotSetMotorSpeed(2, speed);
-      break;
-    case 1:   // 1 höger sensor, höger utanför linjen
-      zRobotSetMotorSpeed(1, -speed);
-      zRobotSetMotorSpeed(2, 0);
-      break;
-    case 2:   // 2 vänster sensor, vänster utanför linjen
-      zRobotSetMotorSpeed(1, 0);
-      zRobotSetMotorSpeed(2, speed);
-      break;
-    case 3:   // 3 båda sensorerna, båda utanför??
-      zRobotSetMotorSpeed(1, 0);
-      zRobotSetMotorSpeed(2, 0);
-      break;
-  }
-*/
